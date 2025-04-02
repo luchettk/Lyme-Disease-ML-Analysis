@@ -10,5 +10,45 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Importing all the necessary libraries and files
 ```{r}
-
+install.packages("magick")
+library(magick)
+library(caret) 
 ```
+
+Getting all of the negative images
+```{r}
+folder_path_negative <- "C:/Users/nmdej/OneDrive/DS4420/Negative"
+
+image_files_negative <- list.files(folder_path_negative, pattern = "\\.jpg$", full.names = TRUE)
+
+images_negative <- lapply(image_files_negative, image_read)
+
+print(length(images_negative))
+```
+
+Getting all of the positive images
+```{r}
+folder_path_positive <- "C:/Users/nmdej/OneDrive/DS4420/Positive"
+
+image_files_positive <- list.files(folder_path_positive, pattern = "\\.jpg$", full.names = TRUE)
+
+images_positive <- lapply(image_files_positive, image_read)
+
+print(length(images_positive))
+```
+Stacking the positive and negative images and creating the associated y column (1 = positive, 0 = negative)
+```{r}
+x <- c(images_positive, images_negative)
+y <- c(rep(1, 941), rep(0, 4118))
+```
+
+Splitting into training and test sets
+```{r}
+train_indices <- createDataPartition(y, p = 0.7, list = FALSE)
+X_train <- x[train_indices]
+X_test <- x[-train_indices]
+y_train <- y[train_indices]
+y_test <- y[-train_indices]
+```
+
+
