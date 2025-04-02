@@ -51,4 +51,119 @@ y_train <- y[train_indices]
 y_test <- y[-train_indices]
 ```
 
+Building the model from scratch
+```{r}
+conv_to_mat <- function(x, im_shape = c(50, 50)) {
+  # need to convery magick to a matrix
+  x <- as.raster(x)
+  x <- as.matrix(as.numeric(col2rgb(x)[1, ]))
+
+  x <- matrix(x, nrow = im_shape[1], ncol = im_shape[2], byrow = TRUE)
+}
+
+plot_img <- function(x, im_shape = c(50, 50)) {
+  
+  # need to convert matrix to data frame for ggplot
+  df <- data.frame(expand.grid(x = 1:im_shape[2], y = 1:im_shape[1]),
+                   value = as.vector(t(x)))
+  
+  ggplot(df, aes(x, y, fill = value)) +
+    geom_tile() +
+    # can choose how to map the 0 and 1 (I'm copying cmap from python here)
+    scale_fill_gradient(low = "black", high = "white") +
+    theme_void() +
+    theme(aspect.ratio = 1) +
+    scale_y_reverse()
+}
+
+plot_img(conv_to_mat(X_train[[1]]))
+```
+
+```{r}
+# edge kernel
+W <- matrix(c(-1, 0, 1,
+              -1, 0, 1,
+              -1, 0, 1), nrow = 3, byrow = TRUE)
+
+convMat <- function(X, W, stride=1) {
+  # get the dimensions of the kernel and input
+  k <- nrow(W)
+  p <- nrow(X)
+  
+  # calculate the dimensions of the output matrix
+  q <- (p - k) %/% stride + 1
+  G <- matrix(0, nrow = q, ncol = q)
+  
+  # do the thing
+  for (m in 1:q) {
+    for (n in 1:q) {
+      submatrix <- X[((m-1)*stride+1):((m-1)*stride+k), ((n-1)*stride+1):((n-1)*stride+k)]
+      G[m, n] <- sum(W * submatrix)
+    }
+  }
+  
+  return(G)
+}
+```
+
+```{r}
+X <- conv_to_mat(X_train[[1]])
+G <- convMat(X, W)
+print(G)
+
+plot_img(G, im_shape = c(48, 48))
+```
+Max Pooling Function
+```{r}
+max_pool <- function(G, pool_size) {
+  m <- nrow(G)
+  n <- ncol(G)
+  
+  # calculate dimensions of the pooled output
+  pooled_height <- m - pool_size + 1
+  pooled_width <- n - pool_size + 1
+  pooled_output <- matrix(0, nrow = pooled_height, ncol = pooled_width)
+  
+  # do the thing
+  for (i in 1:pooled_height) {
+    for (j in 1:pooled_width) {
+      # extract the pooling region
+      pool_region <- G[i:(i + pool_size - 1), j:(j + pool_size - 1)]
+      # take the maximum value
+      pooled_output[i, j] <- max(pool_region)
+    }
+  }
+  
+  return(pooled_output)
+}
+
+```
+
+```{r}
+PG <- max_pool(G, 2)
+PG
+
+plot_img(PG, im_shape = c(47, 47))
+```
+
+```{r}
+padding <- function(X, W) {
+  # get the dimensions of the kernel and input
+  k <- nrow(W)
+  p <- nrow(X)
+  
+  px <- (k - 1) %/% 2
+  
+  # add the top and bottom pads
+  pad1 <- matrix(0, nrow = px, ncol = p)
+  padX1 <- rbind(pad1, X, pad1)
+  
+  # add the left and right pads
+  pad2 <- matrix(0, nrow = nrow(padX1), ncol = px)
+  padX2 <- cbind(pad2, padX1, pad2)
+  
+  return(padX2)
+}
+```
+
 
