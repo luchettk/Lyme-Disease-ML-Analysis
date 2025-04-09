@@ -1,7 +1,7 @@
 ---
-title: "Lyme Disease CNN"
+title: "Another Lyme Disease CNN"
 output: html_document
-date: "2025-03-18"
+date: "2025-04-09"
 ---
 
 ```{r setup, include=FALSE}
@@ -14,7 +14,6 @@ Importing all the necessary libraries and files
 library(magick)
 library(caret) 
 set.seed(42)
-
 ```
 
 Getting all of the negative images
@@ -54,32 +53,7 @@ y_test <- y[-train_indices]
 ```
 
 Building the model from scratch
-```{r}
-conv_to_mat <- function(x, im_shape = c(50, 50)) {
-  # need to convert magick to a matrix
-  x <- as.raster(x)
-  x <- as.matrix(as.numeric(col2rgb(x)[1, ]))
 
-  x <- matrix(x, nrow = im_shape[1], ncol = im_shape[2], byrow = TRUE)
-}
-
-plot_img <- function(x, im_shape = c(50, 50)) {
-  
-  # need to convert matrix to data frame for ggplot
-  df <- data.frame(expand.grid(x = 1:im_shape[2], y = 1:im_shape[1]),
-                   value = as.vector(t(x)))
-  
-  ggplot(df, aes(x, y, fill = value)) +
-    geom_tile() +
-    # can choose how to map the 0 and 1 (I'm copying cmap from python here)
-    scale_fill_gradient(low = "black", high = "white") +
-    theme_void() +
-    theme(aspect.ratio = 1) +
-    scale_y_reverse()
-}
-
-plot_img(conv_to_mat(X_train[[1]]))
-```
 Changing the matrix conversion function since padding is needed
 ```{r}
 conv_to_mat2 <- function(x, im_shape = c(72, 72)) {
@@ -98,23 +72,6 @@ conv_to_mat2 <- function(x, im_shape = c(72, 72)) {
   
   matrix(x, nrow = im_shape[1], ncol = im_shape[2], byrow = TRUE)
 }
-
-plot_img <- function(x, im_shape = c(100, 100)) {
-  
-  # need to convert matrix to data frame for ggplot
-  df <- data.frame(expand.grid(x = 1:im_shape[2], y = 1:im_shape[1]),
-                   value = as.vector(t(x)))
-  
-  ggplot(df, aes(x, y, fill = value)) +
-    geom_tile() +
-    # can choose how to map the 0 and 1 (I'm copying cmap from python here)
-    scale_fill_gradient(low = "black", high = "white") +
-    theme_void() +
-    theme(aspect.ratio = 1) +
-    scale_y_reverse()
-}
-
-#plot_img(conv_to_mat2(X_train[[1]]))
 ```
 
 ```{r}
@@ -144,13 +101,7 @@ convMat <- function(X, W, stride=1) {
 }
 ```
 
-```{r}
-X <- conv_to_mat2(X_train[[1]])
-G <- convMat(X, W, stride=2)
-print(G)
 
-plot_img(G, im_shape = c(24, 24))
-```
 Max Pooling Function
 ```{r}
 max_pool <- function(G, pool_size) {
@@ -177,33 +128,6 @@ max_pool <- function(G, pool_size) {
 
 ```
 
-```{r}
-PG <- max_pool(G, 2)
-PG
-
-plot_img(PG, im_shape = c(23, 23))
-```
-
-```{r}
-padding <- function(X, W) {
-  # get the dimensions of the kernel and input
-  k <- nrow(W)
-  p <- nrow(X)
-  
-  px <- (k - 1) %/% 2
-  
-  # add the top and bottom pads
-  pad1 <- matrix(0, nrow = px, ncol = p)
-  padX1 <- rbind(pad1, X, pad1)
-  
-  # add the left and right pads
-  pad2 <- matrix(0, nrow = nrow(padX1), ncol = px)
-  padX2 <- cbind(pad2, padX1, pad2)
-  
-  return(padX2)
-}
-```
-
 Relu, Flatten, and Hidden Layer functions
 ```{r}
 relu <- function(x){
@@ -220,40 +144,6 @@ hidden_layer <- function(x, w, activation = relu) {
 }
 ```
 
-Just a singular forward function
-```{r}
-cnn_forward <- function(image, weights) {
-  convMat1 <- convMat(image, weights)
-  
-  pooled_outputs <- max_pool(convMat1, 2)
-  
-  flat_features <- unlist(lapply(pooled_outputs, flatten))
-  
-  input_size <- length(flat_features)
-  print(input_size)
-  
-  W1 <- matrix(rnorm(input_size * 16, mean = 0, sd = 0.1), nrow = input_size, ncol = 16)
-  
-  hid_layer <- hidden_layer(flat_features, W1)
-  
-  W2 <- matrix(rnorm(1, mean = 0, sd = 0.1), nrow = 16, ncol = 1)
-  
-  out_layer <- hidden_layer(hid_layer, W2)
-  
-  sigmoid <- function(x) 1 / (1 + exp(-x))
-  final_output <- sigmoid(out_layer)
-  
-  return(final_output)
-}
-
-
-```
-
-```{r}
-lets_see <- cnn_forward(X, W)
-
-print(lets_see)
-```
 
 ```{r}
 binary_loss <- function(y_true, y_pred) {
@@ -445,3 +335,5 @@ cat(sprintf("Test Accuracy: %.2f%%\n", test_accuracy * 100))
 confusionMatrix(factor(test_predictions), factor(y_test))
 
 ```
+
+
