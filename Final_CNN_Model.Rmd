@@ -8,6 +8,10 @@ date: "2025-04-09"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+This is the final version of the model, everything will work to run through it from top to bottom. Note that it will take about 2 hours to run the model on 20 epochs. 
+
+
 Importing all the necessary libraries and files
 ```{r}
 #install.packages("magick")
@@ -74,6 +78,7 @@ conv_to_mat2 <- function(x, im_shape = c(72, 72)) {
 }
 ```
 
+Creating the edge kernel and convolutional layer
 ```{r}
 # edge kernel
 W <- matrix(c(-1, 0, 1,
@@ -128,14 +133,10 @@ max_pool <- function(G, pool_size) {
 
 ```
 
-Relu, Flatten, and Hidden Layer functions
+Relu and Hidden Layer functions
 ```{r}
 relu <- function(x){
   ifelse(x, x, 0)
-}
-
-flatten <- function(x) {
-  return(as.vector(t(x)))
 }
 
 hidden_layer <- function(x, w, activation = relu) {
@@ -144,37 +145,44 @@ hidden_layer <- function(x, w, activation = relu) {
 }
 ```
 
-
+Binary loss and Sigmoid, as well as their derivative
 ```{r}
+# Binary loss function
 binary_loss <- function(y_true, y_pred) {
   eps <- 1e-7
   - (y_true * log(y_pred + eps) + (1 - y_true) * log(1 - y_pred + eps))
 }
 
+# Binary loss derivative 
 binary_loss_deriv <- function(y_true, y_pred) {
   (y_pred - y_true) / (y_pred * (1 - y_pred) + 1e-7)
 }
 
+# Sigmoid funciotn
 sigmoid <- function(x) {
   1 / (1 + exp(-x))
 }
 
+# Sigmoid derivative
 sigmoid_deriv <- function(x) {
   s <- sigmoid(x)
   s * (1 - s)
 }
-
-relu_deriv <- function(x) as.numeric(x > 0)
 ```
 
+Leaky relu funcionts
 ```{r}
+# leaky relu function
 leaky_relu <- function(x, alpha=0.005) ifelse(x > 0, x, alpha*x)
+
+# leaky relu derivative
 leaky_relu_deriv <- function(x, alpha=0.005) ifelse(x > 0, 1, alpha)
 ```
 
 
-Even newer
+Creating the CNN model from scratch
 ```{r}
+# Defining our constants
 learning_rate <- 0.001
 epochs <- 20
 batch_size <- 32 
@@ -214,7 +222,7 @@ for (epoch in 1:epochs) {
   
   indices <- sample(1:length(X_train))
   
-  # Running on batches
+  # Running on batches, helped with convergence
   for (batch_start in seq(1, length(X_train), by = batch_size)) {
     batch_end <- min(batch_start + batch_size - 1, length(X_train))
     batch_indices <- indices[batch_start:batch_end]
@@ -225,19 +233,23 @@ for (epoch in 1:epochs) {
     db1_batch <- matrix(0, nrow = 1, ncol = hidden_size)
     db2_batch <- 0
     
+    # Running in our batches
     for (i in batch_indices) {
-      # Forward pass
+      # Grabbing our images
       x_img <- conv_to_mat2(X_train[[i]])
       y_true <- y_train[i]
       
+      # Forward pass
       conv_out <- convMat(x_img, W)
       pooled <- max_pool(conv_out, 2)
       flat_features <- as.vector(unlist(pooled))
       flat <- matrix(flat_features, nrow = 1)
       
+      # Dense layer
       z1 <- flat %*% W1 + b1
       a1 <- leaky_relu(z1)
       
+      # Output layer
       z2 <- a1 %*% W2 + b2
       y_pred <- sigmoid(z2)
       
@@ -249,10 +261,9 @@ for (epoch in 1:epochs) {
       dL_dy <- binary_loss_deriv(y_true, y_pred)
       dy_dz2 <- sigmoid_deriv(z2)
       dz2 <- dL_dy * dy_dz2
-      
       dz1 <- (dz2 %*% t(W2)) * leaky_relu_deriv(z1)
       
-      # Batch gradients
+      # Batch gradients updates
       dW1_batch <- dW1_batch + t(flat) %*% dz1
       dW2_batch <- dW2_batch + t(a1) %*% dz2
       db1_batch <- db1_batch + dz1
@@ -277,7 +288,7 @@ for (epoch in 1:epochs) {
     momentum_b1 <- .9 * momentum_b1 + 0.1 * db1_batch
     momentum_b2 <- .9 * momentum_b2 + 0.1 * db2_batch
     
-    # Weight update
+    # Weight update with momentum to help with convergence
     W1 <- W1 - learning_rate * momentum_W1
     W2 <- W2 - learning_rate * momentum_W2
     b1 <- b1 - learning_rate * momentum_b1
@@ -288,6 +299,7 @@ for (epoch in 1:epochs) {
   avg_loss <- total_loss / length(X_train)
   accuracy <- correct / total
   
+  # Printing out each epoch
   cat(sprintf("Epoch %d - Loss: %.4f - Accuracy: %.2f%%\n", 
               epoch, avg_loss, accuracy*100))
 }
@@ -301,6 +313,7 @@ test_probabilities <- vector("numeric", length = length(X_test))
 correct <- 0
 total <- 0
 
+# Testing the accuracy of the model
 for (i in 1:length(X_test)) {
     x_img <- conv_to_mat2(X_test[[i]])
     y_true <- y_test[i]
@@ -331,9 +344,11 @@ for (i in 1:length(X_test)) {
 test_accuracy <- correct / total
 cat(sprintf("Test Accuracy: %.2f%%\n", test_accuracy * 100))
 
-# Extra predictions and model performance to observe
-confusionMatrix(factor(test_predictions), factor(y_test))
-
 ```
-
-
+Creating a Confusion Matrix to analyze results
+```{r}
+# Modeling our results in a confusion matrix
+conf_mat <- confusionMatrix(factor(test_predictions), factor(y_test))
+fourfoldplot(conf_mat$table, color = c("#CC6666", "#99CC99"),
+             conf.level = 0, margin = 1, main = "Confusion Matrix")
+```
