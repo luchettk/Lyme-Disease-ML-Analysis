@@ -352,3 +352,20 @@ conf_mat <- confusionMatrix(factor(test_predictions), factor(y_test))
 fourfoldplot(conf_mat$table, color = c("#CC6666", "#99CC99"),
              conf.level = 0, margin = 1, main = "Confusion Matrix")
 ```
+
+Finding the Precision, Recall, and F1.
+```{r}
+test_predictions_f <- as.factor(test_predictions)
+y_test_f <- as.factor(y_test)
+
+precision <- posPredValue(test_predictions_f, y_test_f, positive="1")
+recall <- sensitivity(test_predictions_f, y_test_f, positive="1")
+
+F1 <- (2 * precision * recall) / (precision + recall)
+
+cat(sprintf("Test Precision: %.2f%%\n", precision * 100))
+cat(sprintf("Test Recall: %.2f%%\n", recall * 100))
+cat(sprintf("Test F1: %.2f%%\n", F1 * 100))
+
+```
+
